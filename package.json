@@ -1,0 +1,51 @@
+{
+  "name": "coc-restclient",
+  "version": "0.0.1",
+  "description": "vscode http client for coc.nvim",
+  "keywords": [
+    "coc.nvim",
+    "vscode",
+    "http client"
+  ],
+  "main": "./lib/index.js",
+  "repository": "git@github.com/pr4th4m/coc-restclient.git",
+  "author": "pr4th4m",
+  "private": false,
+  "engines": {
+    "coc": "^0.0.77"
+  },
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "rest-client.request",
+        "title": "Send http request from current buffer",
+        "category": "rest-client"
+      }
+    ],
+    "configuration": {
+      "title": "enable",
+      "properties": {
+        "rest-client.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "enable this extension?"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "rimraf lib",
+    "build:watch": "tsc -p ./ --watch",
+    "build": "tsc -p ./"
+  },
+  "devDependencies": {
+    "coc.nvim": "^0.0.77",
+    "rimraf": "^3.0.2",
+    "@types/node": "^14.0.12",
+    "typescript": "^3.9.3"
+  },
+  "dependencies": {}
+}

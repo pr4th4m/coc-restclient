@@ -1,0 +1,3 @@
+- support visual select for multiple requests
+- support variable substitution
+- support curl

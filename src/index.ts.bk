@@ -1,0 +1,501 @@
+import { ExtensionContext, workspace, commands } from "coc.nvim";
+import { EOL } from "os";
+
+import { Stream } from "stream";
+import * as fs from "fs-extra";
+const encodeurl = require("encodeurl");
+const CombinedStream = require("combined-stream");
+
+import { MimeUtility } from "../../vscode-restclient/src/utils/mimeUtility";
+import { resolveRequestBodyPath } from "../../vscode-restclient/src/utils/requestParserUtil";
+
+export async function activate(context: ExtensionContext) {
+  const config = workspace.getConfiguration("http");
+
+  const isEnable = config.get<boolean>("enable", true);
+  if (!isEnable) {
+    return;
+  }
+
+  context.subscriptions.push(
+    commands.registerCommand("http.sendrequest", sendRequest)
+  );
+}
+
+const data = `
+{
+  "args": {},
+  "headers": { "x-forwarded-proto": "https",
+    "x-forwarded-port": "443",
+    "host": "postman-echo.com",
+    "x-amzn-trace-id": "Root=1-5eda4323-4907f6a82e28c4708d540e34",
+    "upgrade-insecure-requests": "1",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+    "sec-fetch-site": "none",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-user": "?1",
+    "sec-fetch-dest": "document",
+    "accept-encoding": "gzip, deflate, br",
+    "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",
+    "if-none-match": "W/\"306-dBUpFUi5y8RD6ybK3l6wBVLtdBY\"",
+    "cookie": "sails.sid=s%3A7jNB6EjUNSY8gzSWW6-82Ir6CjrNwc-M.knuwe7imtD6NvpEguXndVoIV5%2BhktWx7HQIr0aDht%2Bk"
+  },
+  "url": "https://postman-echo.com/get"
+}
+`;
+
+export const RequestVariableDefinitionWithNameRegexFactory = (
+  name: string,
+  flags?: string
+): RegExp =>
+  new RegExp(`^\\s*(?:#{1,}|\\/{2,})\\s+@name\\s+(${name})\\s*$`, flags);
+
+export const RequestVariableDefinitionRegex: RegExp = RequestVariableDefinitionWithNameRegexFactory(
+  "\\w+",
+  "m"
+);
+export const LineSplitterRegex: RegExp = /\r?\n/g;
+export const CommentIdentifiersRegex: RegExp = /^\s*(#|\/{2})/;
+export const FileVariableDefinitionRegex: RegExp = /^\s*@([^\s=]+)\s*=\s*(.*?)\s*$/;
+
+export const sendRequest = async () => {
+  const document = await workspace.document;
+  const text = document.textDocument.getText();
+  // console.log(text);
+
+  const pos = await workspace.getCursorPosition();
+
+  // let selectedText = text;
+  let selectedText = getDelimitedText(text, pos.line);
+  // console.log(selectedText);
+
+  // let matched = selectedText.match(RequestVariableDefinitionRegex);
+  // console.log(matched);
+
+  const rawLines = selectedText
+    .split(LineSplitterRegex)
+    .filter((l) => !CommentIdentifiersRegex.test(l));
+  // console.log(rawLines);
+
+  const requestRange = getRequestRanges(rawLines)[0];
+  // console.log(requestRange);
+
+  selectedText = rawLines.slice(requestRange[0], requestRange[1] + 1).join(EOL);
+  // console.log(selectedText);
+
+  parseHttpRequest(selectedText);
+
+  // const requestRange = this.getRequestRanges(rawLines)[0];
+  // if (!requestRange) {
+  //   return null;
+  // }
+
+  // let range = await workspace.getSelectedRange("v", document);
+  // console.log(range);
+
+  // let wins = await workspace.nvim.windows;
+  // console.log(wins.length);
+  // let buf = await workspace.nvim.createNewBuffer(true, true);
+  // buf.insert("love you", 0);
+
+  // let state = await workspace.getCurrentState();
+  // console.log(state.document);
+  // console.log(state.position);
+
+  let channel = workspace.createOutputChannel("http");
+  channel.show();
+  channel.append(data);
+
+  // let win = await workspace.nvim.createWindow(0);
+  // let buf = await win.buffer;
+  // buf.insert("love you", 0);
+  // buf.append("love you");
+};
+
+enum ParseState {
+  URL,
+  Header,
+  Body,
+}
+
+const queryStringLinePrefix = /^\s*[&\?]/;
+function parseHttpRequest(requestRawText: string, name?: string) {
+  // parse follows http://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
+  // split the request raw text into lines
+  console.log(requestRawText);
+  const lines: string[] = requestRawText.split(EOL);
+  const requestLines: string[] = [];
+  const headersLines: string[] = [];
+  const bodyLines: string[] = [];
+  const variableLines: string[] = [];
+
+  let state = ParseState.URL;
+  let currentLine: string | undefined;
+  while ((currentLine = lines.shift()) !== undefined) {
+    const nextLine = lines[0];
+    switch (state) {
+      case ParseState.URL:
+        requestLines.push(currentLine.trim());
+        if (nextLine === undefined || queryStringLinePrefix.test(nextLine)) {
+          // request with request line only
+        } else if (nextLine.trim()) {
+          state = ParseState.Header;
+        } else {
+          // request with no headers but has body
+          // remove the blank line before the body
+          lines.shift();
+          state = ParseState.Body;
+        }
+        break;
+      case ParseState.Header:
+        headersLines.push(currentLine.trim());
+        if (nextLine?.trim() === "") {
+          // request with no headers but has body
+          // remove the blank line before the body
+          lines.shift();
+          state = ParseState.Body;
+        }
+        break;
+      case ParseState.Body:
+        bodyLines.push(currentLine);
+        break;
+    }
+  }
+
+  const requestLine = parseRequestLine(requestLines.join(EOL));
+  console.log(requestLine);
+
+  // parse headers lines
+  const headers = parseRequestHeaders(
+    headersLines,
+    { [""]: "" },
+    requestLine.url
+  );
+  console.log(headers);
+
+  // let underlying node.js library recalculate the content length
+  removeHeader(headers, "content-length");
+
+  // parse body lines
+  const contentTypeHeader = getContentType(headers);
+  let body = parseBody(bodyLines, contentTypeHeader);
+  body = encodeurl(body);
+  console.log(body);
+}
+
+const inputFileSyntax = /^<\s+(.+?)\s*$/;
+function parseBody(
+  lines: string[],
+  contentTypeHeader: string | undefined
+): string | Stream | undefined {
+  if (lines.length === 0) {
+    return undefined;
+  }
+
+  // Check if needed to upload file
+  if (lines.every((line) => inputFileSyntax.test(line))) {
+    if (MimeUtility.isFormUrlEncoded(contentTypeHeader)) {
+      return lines.reduce((p, c, i) => {
+        p += `${i === 0 || c.startsWith("&") ? "" : EOL}${c}`;
+        return p;
+      }, "");
+    } else {
+      const lineEnding = this.getLineEnding(contentTypeHeader);
+      let result = lines.join(lineEnding);
+      if (MimeUtility.isNewlineDelimitedJSON(contentTypeHeader)) {
+        result += lineEnding;
+      }
+      return result;
+    }
+  } else {
+    const combinedStream = CombinedStream.create({
+      maxDataSize: 10 * 1024 * 1024,
+    });
+    for (const [index, line] of lines.entries()) {
+      if (this.inputFileSyntax.test(line)) {
+        const groups = inputFileSyntax.exec(line);
+        if (groups?.length === 2) {
+          const inputFilePath = groups[1];
+          const fileAbsolutePath = resolveRequestBodyPath(inputFilePath);
+          if (fileAbsolutePath) {
+            combinedStream.append(fs.createReadStream(fileAbsolutePath));
+          } else {
+            combinedStream.append(line);
+          }
+        }
+      } else {
+        combinedStream.append(line);
+      }
+
+      if (index !== lines.length - 1) {
+        combinedStream.append(this.getLineEnding(contentTypeHeader));
+      }
+    }
+
+    return combinedStream;
+  }
+}
+
+export type RequestHeaderValue = {
+  [K in keyof RequestHeaders]: RequestHeaders[K];
+}[keyof RequestHeaders];
+
+function getContentType(
+  headers: RequestHeaders | ResponseHeaders
+): string | undefined {
+  const value = "application/json";
+  return value?.toString();
+}
+
+interface OutgoingHttpHeaders {
+  [header: string]: number | string | string[] | undefined;
+}
+export type RequestHeaders = OutgoingHttpHeaders;
+
+export function parseRequestHeaders(
+  headerLines: string[],
+  defaultHeaders: RequestHeaders,
+  url: string
+): RequestHeaders {
+  // message-header = field-name ":" [ field-value ]
+  const headers: RequestHeaders = {};
+  const headerNames: { [key: string]: string } = {};
+  headerLines.forEach((headerLine) => {
+    let fieldName: string;
+    let fieldValue: string;
+    const separatorIndex = headerLine.indexOf(":");
+    if (separatorIndex === -1) {
+      fieldName = headerLine.trim();
+      fieldValue = "";
+    } else {
+      fieldName = headerLine.substring(0, separatorIndex).trim();
+      fieldValue = headerLine.substring(separatorIndex + 1).trim();
+    }
+
+    const normalizedFieldName = fieldName.toLowerCase();
+    if (!headerNames[normalizedFieldName]) {
+      headerNames[normalizedFieldName] = fieldName;
+      headers[fieldName] = fieldValue;
+    } else {
+      const splitter = normalizedFieldName === "cookie" ? ";" : ",";
+      headers[headerNames[normalizedFieldName]] += `${splitter}${fieldValue}`;
+    }
+  });
+
+  if (url[0] !== "/") {
+    removeHeader(defaultHeaders, "host");
+  }
+
+  return { ...defaultHeaders, ...headers };
+}
+
+interface IncomingHttpHeaders {
+  accept?: string;
+  "accept-language"?: string;
+  "accept-patch"?: string;
+  "accept-ranges"?: string;
+  "access-control-allow-credentials"?: string;
+  "access-control-allow-headers"?: string;
+  "access-control-allow-methods"?: string;
+  "access-control-allow-origin"?: string;
+  "access-control-expose-headers"?: string;
+  "access-control-max-age"?: string;
+  age?: string;
+  allow?: string;
+  "alt-svc"?: string;
+  authorization?: string;
+  "cache-control"?: string;
+  connection?: string;
+  "content-disposition"?: string;
+  "content-encoding"?: string;
+  "content-language"?: string;
+  "content-length"?: string;
+  "content-location"?: string;
+  "content-range"?: string;
+  "content-type"?: string;
+  cookie?: string;
+  date?: string;
+  expect?: string;
+  expires?: string;
+  forwarded?: string;
+  from?: string;
+  host?: string;
+  "if-match"?: string;
+  "if-modified-since"?: string;
+  "if-none-match"?: string;
+  "if-unmodified-since"?: string;
+  "last-modified"?: string;
+  location?: string;
+  pragma?: string;
+  "proxy-authenticate"?: string;
+  "proxy-authorization"?: string;
+  "public-key-pins"?: string;
+  range?: string;
+  referer?: string;
+  "retry-after"?: string;
+  "set-cookie"?: string[];
+  "strict-transport-security"?: string;
+  tk?: string;
+  trailer?: string;
+  "transfer-encoding"?: string;
+  upgrade?: string;
+  "user-agent"?: string;
+  vary?: string;
+  via?: string;
+  warning?: string;
+  "www-authenticate"?: string;
+  [header: string]: string | string[] | undefined;
+}
+export type ResponseHeaders = IncomingHttpHeaders;
+
+export function removeHeader(
+  headers: RequestHeaders | ResponseHeaders,
+  name: string
+) {
+  if (!headers || !name) {
+    return;
+  }
+
+  const headerName = Object.keys(headers).find(
+    (h) => h.toLowerCase() === name.toLowerCase()
+  );
+  if (headerName) {
+    delete headers[headerName];
+  }
+}
+
+const defaultMethod = "GET";
+function parseRequestLine(line: string): { method: string; url: string } {
+  // Request-Line = Method SP Request-URI SP HTTP-Version CRLF
+  const words = line.split(" ").filter(Boolean);
+
+  let method: string;
+  let url: string;
+  if (words.length === 1) {
+    // Only provides request url
+    method = defaultMethod;
+    url = words[0];
+  } else {
+    // Provides both request method and url
+    method = words.shift()!;
+    url = line.trim().substring(method.length).trim();
+    if (/^HTTP\/.*$/i.test(words[words.length - 1])) {
+      url = url.substring(0, url.lastIndexOf(words[words.length - 1])).trim();
+    }
+  }
+
+  return { method, url };
+}
+
+export interface RequestRangeOptions {
+  ignoreCommentLine?: boolean;
+  ignoreEmptyLine?: boolean;
+  ignoreFileVariableDefinitionLine?: boolean;
+  ignoreResponseRange?: boolean;
+}
+
+export const responseStatusLineRegex = /^\s*HTTP\/[\d.]+/;
+
+function getRequestRanges(
+  lines: string[],
+  options?: RequestRangeOptions
+): [number, number][] {
+  options = {
+    ignoreCommentLine: true,
+    ignoreEmptyLine: true,
+    ignoreFileVariableDefinitionLine: true,
+    ignoreResponseRange: true,
+    ...options,
+  };
+  const requestRanges: [number, number][] = [];
+  const delimitedLines = getDelimiterRows(lines);
+  delimitedLines.push(lines.length);
+
+  let prev = -1;
+  for (const current of delimitedLines) {
+    let start = prev + 1;
+    let end = current - 1;
+    while (start <= end) {
+      const startLine = lines[start];
+      if (
+        options.ignoreResponseRange &&
+        responseStatusLineRegex.test(startLine)
+      ) {
+        break;
+      }
+
+      if (
+        (options.ignoreCommentLine &&
+          CommentIdentifiersRegex.test(startLine)) ||
+        (options.ignoreEmptyLine && isEmptyLine(startLine)) ||
+        (options.ignoreFileVariableDefinitionLine &&
+          FileVariableDefinitionRegex.test(startLine))
+      ) {
+        start++;
+        continue;
+      }
+
+      const endLine = lines[end];
+      if (
+        (options.ignoreCommentLine && CommentIdentifiersRegex.test(endLine)) ||
+        (options.ignoreEmptyLine && isEmptyLine(endLine))
+      ) {
+        end--;
+        continue;
+      }
+
+      requestRanges.push([start, end]);
+      break;
+    }
+    prev = current;
+  }
+
+  return requestRanges;
+}
+
+function isEmptyLine(line: string): boolean {
+  return line.trim() === "";
+}
+
+function getDelimitedText(
+  fullText: string,
+  currentLine: number
+): string | null {
+  const lines: string[] = fullText.split(LineSplitterRegex);
+  const delimiterLineNumbers: number[] = getDelimiterRows(lines);
+  if (delimiterLineNumbers.length === 0) {
+    return fullText;
+  }
+
+  // return null if cursor is in delimiter line
+  if (delimiterLineNumbers.includes(currentLine)) {
+    return null;
+  }
+
+  if (currentLine < delimiterLineNumbers[0]) {
+    return lines.slice(0, delimiterLineNumbers[0]).join(EOL);
+  }
+
+  if (currentLine > delimiterLineNumbers[delimiterLineNumbers.length - 1]) {
+    return lines
+      .slice(delimiterLineNumbers[delimiterLineNumbers.length - 1] + 1)
+      .join(EOL);
+  }
+
+  for (let index = 0; index < delimiterLineNumbers.length - 1; index++) {
+    const start = delimiterLineNumbers[index];
+    const end = delimiterLineNumbers[index + 1];
+    if (start < currentLine && currentLine < end) {
+      return lines.slice(start + 1, end).join(EOL);
+    }
+  }
+
+  return null;
+}
+
+function getDelimiterRows(lines: string[]): number[] {
+  return Object.entries(lines)
+    .filter(([, value]) => /^#{3,}/.test(value))
+    .map(([index]) => +index);
+}
