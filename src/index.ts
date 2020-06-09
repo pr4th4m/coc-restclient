@@ -8,7 +8,6 @@ export async function activate(context: ExtensionContext) {
   if (!isEnable) {
     return;
   }
-
   context.subscriptions.push(
     commands.registerCommand("rest-client.request", requestHandler)
   );

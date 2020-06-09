@@ -1,10 +1,22 @@
 import { EOL } from "os";
+import { Stream } from "stream";
+
+import * as fs from "fs-extra";
+import { WorkspaceConfiguration } from "coc.nvim";
 
 import { RequestParser } from "../models/requestParser";
 import { HttpRequest } from "../models/httpRequest";
-import { WorkspaceConfiguration } from "coc.nvim";
+import { FormParamEncodingStrategy } from "../models/formParamEncodingStrategy";
 
-import { parseRequestHeaders } from "./requestHeaderParser";
+import { removeHeader, getHeader, getContentType } from "../http/misc";
+import {
+  parseRequestHeaders,
+  resolveRequestBodyPath,
+} from "./requestHeaderParser";
+import { MimeUtility } from "./mimeUtility";
+
+const CombinedStream = require("combined-stream");
+const encodeurl = require("encodeurl");
 
 enum ParseState {
   URL,
@@ -15,6 +27,7 @@ enum ParseState {
 export class HttpRequestParser implements RequestParser {
   private readonly defaultMethod = "GET";
   private readonly queryStringLinePrefix = /^\s*[&\?]/;
+  private readonly inputFileSyntax = /^<\s+(.+?)\s*$/;
 
   public constructor(
     private requestRawText: string,
@@ -22,7 +35,6 @@ export class HttpRequestParser implements RequestParser {
   ) {}
 
   public async parseHttpRequest(name?: string): Promise<HttpRequest> {
-    console.log("in here");
     // parse follows http://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
     // split the request raw text into lines
     const lines: string[] = this.requestRawText.split(EOL);
@@ -69,18 +81,85 @@ export class HttpRequestParser implements RequestParser {
 
     // parse request line
     const requestLine = this.parseRequestLine(requestLines.join(EOL));
-    console.log(requestLine);
 
-    // // parse headers lines
-    // const headers = parseRequestHeaders(
-    //   headersLines,
-    //   this.settings.defaultHeaders,
-    //   requestLine.url
-    // );
-    //
-    // console.log(headers);
+    // parse headers lines
+    const headers = parseRequestHeaders(
+      headersLines,
+      this.settings.defaultHeaders,
+      requestLine.url
+    );
 
-    return null;
+    // let underlying node.js library recalculate the content length
+    removeHeader(headers, "content-length");
+
+    // check request type
+    const isGraphQlRequest = getHeader(headers, "X-Request-Type") === "GraphQL";
+    if (isGraphQlRequest) {
+      removeHeader(headers, "X-Request-Type");
+
+      // a request doesn't necessarily need variables to be considered a GraphQL request
+      const firstEmptyLine = bodyLines.findIndex(
+        (value) => value.trim() === ""
+      );
+      if (firstEmptyLine !== -1) {
+        variableLines.push(...bodyLines.splice(firstEmptyLine + 1));
+        bodyLines.pop(); // remove the empty line between body and variables
+      }
+    }
+
+    // parse body lines
+    const contentTypeHeader = getContentType(headers);
+    let body = await this.parseBody(bodyLines, contentTypeHeader);
+
+    if (isGraphQlRequest) {
+      const variables = await this.parseBody(variableLines, contentTypeHeader);
+
+      const graphQlPayload = {
+        query: body,
+        variables: variables ? JSON.parse(variables.toString()) : {},
+      };
+      body = JSON.stringify(graphQlPayload);
+    } else if (
+      this.settings.formParamEncodingStrategy !==
+        FormParamEncodingStrategy.Never &&
+      typeof body === "string" &&
+      MimeUtility.isFormUrlEncoded(contentTypeHeader)
+    ) {
+      if (
+        this.settings.formParamEncodingStrategy ===
+        FormParamEncodingStrategy.Always
+      ) {
+        const stringPairs = body.split("&");
+        const encodedStringPairs: string[] = [];
+        for (const stringPair of stringPairs) {
+          const [name, ...values] = stringPair.split("=");
+          const value = values.join("=");
+          encodedStringPairs.push(
+            `${encodeURIComponent(name)}=${encodeURIComponent(value)}`
+          );
+        }
+        body = encodedStringPairs.join("&");
+      } else {
+        body = encodeurl(body);
+      }
+    }
+
+    // if Host header provided and url is relative path, change to absolute url
+    const host = getHeader(headers, "Host");
+    if (host && requestLine.url[0] === "/") {
+      const [, port] = host.toString().split(":");
+      const scheme = port === "443" || port === "8443" ? "https" : "http";
+      requestLine.url = `${scheme}://${host}${requestLine.url}`;
+    }
+
+    return new HttpRequest(
+      requestLine.method,
+      requestLine.url,
+      headers,
+      body,
+      bodyLines.join(EOL),
+      name
+    );
   }
 
   private parseRequestLine(line: string): { method: string; url: string } {
@@ -103,5 +182,63 @@ export class HttpRequestParser implements RequestParser {
     }
 
     return { method, url };
+  }
+
+  private getLineEnding(contentTypeHeader: string | undefined) {
+    return MimeUtility.isMultiPartFormData(contentTypeHeader) ? "\r\n" : EOL;
+  }
+
+  private async parseBody(
+    lines: string[],
+    contentTypeHeader: string | undefined
+  ): Promise<string | Stream | undefined> {
+    if (lines.length === 0) {
+      return undefined;
+    }
+
+    // Check if needed to upload file
+    if (lines.every((line) => !this.inputFileSyntax.test(line))) {
+      if (MimeUtility.isFormUrlEncoded(contentTypeHeader)) {
+        return lines.reduce((p, c, i) => {
+          p += `${i === 0 || c.startsWith("&") ? "" : EOL}${c}`;
+          return p;
+        }, "");
+      } else {
+        const lineEnding = this.getLineEnding(contentTypeHeader);
+        let result = lines.join(lineEnding);
+        if (MimeUtility.isNewlineDelimitedJSON(contentTypeHeader)) {
+          result += lineEnding;
+        }
+        return result;
+      }
+    } else {
+      const combinedStream = CombinedStream.create({
+        maxDataSize: 10 * 1024 * 1024,
+      });
+      for (const [index, line] of lines.entries()) {
+        if (this.inputFileSyntax.test(line)) {
+          const groups = this.inputFileSyntax.exec(line);
+          if (groups?.length === 2) {
+            const inputFilePath = groups[1];
+            const fileAbsolutePath = await resolveRequestBodyPath(
+              inputFilePath
+            );
+            if (fileAbsolutePath) {
+              combinedStream.append(fs.createReadStream(fileAbsolutePath));
+            } else {
+              combinedStream.append(line);
+            }
+          }
+        } else {
+          combinedStream.append(line);
+        }
+
+        if (index !== lines.length - 1) {
+          combinedStream.append(this.getLineEnding(contentTypeHeader));
+        }
+      }
+
+      return combinedStream;
+    }
   }
 }

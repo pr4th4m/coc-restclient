@@ -32,6 +32,30 @@
           "type": "boolean",
           "default": true,
           "description": "enable this extension?"
+        },
+        "rest-client.defaultHeaders": {
+          "type": "object",
+          "default": {
+            "User-Agent": "coc-restclient"
+          },
+          "scope": "resource",
+          "description": "If particular headers are omitted in request headers, these will be added as headers for each request."
+        },
+        "rest-client.formParamEncodingStrategy": {
+          "type": "string",
+          "enum": [
+            "automatic",
+            "never",
+            "always"
+          ],
+          "markdownEnumDescriptions": [
+            "Detecting encoding or not automatically and do the encoding job if necessary",
+            "Treat provided request body as is, no encoding job will be applied",
+            "Use for the scenario that `automatic` option not working properly, e.g., some special characters(`+`) are not encoded correctly"
+          ],
+          "default": "automatic",
+          "scope": "resource",
+          "markdownDescription": "Form param encoding strategy for request body of `x-www-form-urlencoded`."
         }
       }
     }
@@ -45,7 +69,11 @@
     "coc.nvim": "^0.0.77",
     "rimraf": "^3.0.2",
     "@types/node": "^14.0.12",
-    "typescript": "^3.9.3"
+    "typescript": "^3.9.3",
+    "combined-stream": "^1.0.8",
+    "fs-extra": "^9.0.1",
+    "mime-types": "^2.1.27",
+    "encodeurl": "^1.0.2"
   },
   "dependencies": {}
 }

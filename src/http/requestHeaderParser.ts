@@ -1,3 +1,7 @@
+import * as path from "path";
+import * as fs from "fs-extra";
+import { workspace, Uri, Document } from "coc.nvim";
+
 import { RequestHeaders } from "../models/base";
 import { removeHeader } from "./misc";
 
@@ -36,4 +40,44 @@ export function parseRequestHeaders(
   }
 
   return { ...defaultHeaders, ...headers };
+}
+
+export async function resolveRequestBodyPath(
+  refPath: string
+): Promise<string | undefined> {
+  // get current document
+  const document = await workspace.document;
+
+  if (path.isAbsolute(refPath)) {
+    return (await fs.pathExists(refPath)) ? refPath : undefined;
+  }
+
+  const workspaceRoot = getWorkspaceRootPath(document);
+  if (workspaceRoot) {
+    const absolutePath = path.join(Uri.parse(workspaceRoot).fsPath, refPath);
+    if (await fs.pathExists(absolutePath)) {
+      return absolutePath;
+    }
+  }
+
+  // const currentFile = getCurrentTextDocument()?.fileName;
+  const currentFile = Uri.parse(document.uri).fsPath;
+  if (currentFile) {
+    const absolutePath = path.join(path.dirname(currentFile), refPath);
+    if (await fs.pathExists(absolutePath)) {
+      return absolutePath;
+    }
+  }
+
+  return undefined;
+}
+
+export function getWorkspaceRootPath(document: Document): string | undefined {
+  if (document) {
+    const fileUri = document.uri;
+    const workspaceFolder = workspace.getWorkspaceFolder(fileUri);
+    if (workspaceFolder) {
+      return workspaceFolder.uri.toString();
+    }
+  }
 }
