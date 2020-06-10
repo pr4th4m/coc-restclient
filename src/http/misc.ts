@@ -1,3 +1,5 @@
+import * as crypto from "crypto";
+
 import {
   RequestHeaders,
   ResponseHeaders,
@@ -50,4 +52,19 @@ export function removeHeader(
   if (headerName) {
     delete headers[headerName];
   }
+}
+
+export function md5(text: string | Buffer): string {
+  return crypto.createHash("md5").update(text).digest("hex");
+}
+
+export function hasHeader(
+  headers: RequestHeaders | ResponseHeaders,
+  name: string
+): boolean {
+  return !!(
+    headers &&
+    name &&
+    Object.keys(headers).some((h) => h.toLowerCase() === name.toLowerCase())
+  );
 }

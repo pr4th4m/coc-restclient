@@ -1,9 +1,10 @@
 import * as path from "path";
 import * as fs from "fs-extra";
-import { workspace, Uri, Document } from "coc.nvim";
+import { workspace, Uri } from "coc.nvim";
 
 import { RequestHeaders } from "../models/base";
 import { removeHeader } from "./misc";
+import { getWorkspaceRootPath } from "./workspaceUtility";
 
 export function parseRequestHeaders(
   headerLines: string[],
@@ -70,14 +71,4 @@ export async function resolveRequestBodyPath(
   }
 
   return undefined;
-}
-
-export function getWorkspaceRootPath(document: Document): string | undefined {
-  if (document) {
-    const fileUri = document.uri;
-    const workspaceFolder = workspace.getWorkspaceFolder(fileUri);
-    if (workspaceFolder) {
-      return workspaceFolder.uri.toString();
-    }
-  }
 }

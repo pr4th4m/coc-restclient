@@ -1,6 +1,7 @@
 import { workspace, Uri } from "coc.nvim";
 import { HttpTextParser } from "./http/textParser";
 import { HttpRequestParser } from "./http/requestParser";
+import { HttpClient } from "./http/httpClient";
 
 export const requestHandler = async () => {
   // get config
@@ -46,7 +47,9 @@ export const requestHandler = async () => {
     config
   ).parseHttpRequest(name);
 
-  console.log("%o", httpRequest);
+  let httpClient = new HttpClient(config, document);
+  const response = await httpClient.send(httpRequest);
+  console.log(response);
 };
 
 // let selectedText = text;
