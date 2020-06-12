@@ -33,6 +33,11 @@
           "default": true,
           "description": "enable this extension?"
         },
+        "rest-client.showHeaders": {
+          "type": "boolean",
+          "default": true,
+          "description": "show headers as well"
+        },
         "rest-client.proxyStrictSSL": {
           "type": "boolean",
           "default": false,

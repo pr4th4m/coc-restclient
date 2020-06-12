@@ -9,15 +9,7 @@ export const requestHandler = async () => {
 
   // get current doco text
   const document = await workspace.document;
-
-  // console.log(Uri.parse(document.uri).fsPath);
-  // console.log(workspace.getWorkspaceFolder(document.uri));
-  // console.log(workspace.getWorkspaceFolder(document.uri).uri);
-
   const rawText = document.textDocument.getText();
-
-  // console.log(workspace.workspaceFolder.uri);
-  // console.log(workspace.uri);
 
   // get current cursor position
   const pos = await workspace.getCursorPosition();
@@ -46,10 +38,73 @@ export const requestHandler = async () => {
     text,
     config
   ).parseHttpRequest(name);
+  // console.log("%o", httpRequest);
+
+  let channel = name
+    ? workspace.createOutputChannel(name)
+    : workspace.createOutputChannel("rest-client");
+
+  channel.clear();
+  channel.show();
+  channel.append(`Waiting for response from ${httpRequest.url}`);
+  const channelBuffer = `output:///${channel.name}`;
 
   let httpClient = new HttpClient(config, document);
-  const response = await httpClient.send(httpRequest);
-  console.log(response);
+  try {
+    const response = await httpClient.send(httpRequest);
+
+    // check cancel
+    if (httpRequest.isCancelled) {
+      return;
+    }
+
+    channel.clear();
+    channel.append(
+      JSON.stringify(
+        { Status: response.statusCode, Message: response.statusMessage },
+        null,
+        2
+      )
+    );
+    channel.append(`\n\n`);
+
+    if (config.showHeaders) {
+      channel.append(JSON.stringify(response.headers, null, 2));
+      channel.append(`\n\n`);
+    }
+
+    try {
+      channel.append(JSON.stringify(JSON.parse(response.body), null, 2));
+    } catch (error) {
+      channel.append(response.body);
+    }
+
+    // console.log(response);
+  } catch (error) {
+    // check cancel
+    if (httpRequest.isCancelled) {
+      return;
+    }
+
+    if (error.code === "ETIMEDOUT") {
+      error.message = `Please check your networking connectivity and your time out in ${this._restClientSettings.timeoutInMilliseconds}ms according to your configuration 'rest-client.timeoutinmilliseconds'. Details: ${error}. `;
+    } else if (error.code === "ECONNREFUSED") {
+      error.message = `Connection is being rejected. The service isn’t running on the server, or incorrect proxy settings in vscode, or a firewall is blocking requests. Details: ${error}.`;
+    } else if (error.code === "ENETUNREACH") {
+      error.message = `You don't seem to be connected to a network. Details: ${error}`;
+    } else if (error.code === "ENOTFOUND") {
+      error.message = `Address not found ${httpRequest.url}. Details: ${error}`;
+    }
+    workspace.showMessage(error.message, "error");
+  }
+
+  const bufs = await workspace.nvim.buffers;
+  for (const buf of bufs) {
+    const bufName = await buf.name;
+    if (bufName === channelBuffer) {
+      buf.setOption("ft", "json");
+    }
+  }
 };
 
 // let selectedText = text;
