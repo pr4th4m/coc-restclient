@@ -2,12 +2,12 @@
   "name": "coc-restclient",
   "version": "0.0.1",
   "description": "vscode http client for coc.nvim",
+  "publisher": "pr4th4m",
+  "main": "lib/index.js",
   "keywords": [
     "coc.nvim",
-    "vscode",
-    "http client"
+    "vscode"
   ],
-  "main": "./lib/index.js",
   "repository": "git@github.com/pr4th4m/coc-restclient.git",
   "author": "pr4th4m",
   "private": false,
@@ -150,7 +150,8 @@
   "scripts": {
     "clean": "rimraf lib",
     "watch": "webpack --watch",
-    "build": "webpack"
+    "build": "webpack",
+    "prepare": "npx npm-run-all clean build"
   },
   "devDependencies": {
     "rimraf": "^3.0.2",
