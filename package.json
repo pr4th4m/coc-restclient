@@ -1,6 +1,6 @@
 {
   "name": "coc-restclient",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "vscode http client for coc.nvim",
   "publisher": "pr4th4m",
   "main": "lib/index.js",
