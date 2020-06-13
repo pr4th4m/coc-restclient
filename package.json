@@ -1,6 +1,6 @@
 {
   "name": "coc-restclient",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "vscode http client for coc.nvim",
   "publisher": "pr4th4m",
   "main": "lib/index.js",
@@ -38,15 +38,15 @@
           "default": true,
           "description": "show headers as well"
         },
-        "rest-client.proxyStrictSSL": {
-          "type": "boolean",
-          "default": false,
-          "description": "proxy strict ssl"
-        },
         "rest-client.proxy": {
           "type": "string",
           "default": "",
           "description": "proxy"
+        },
+        "rest-client.proxyStrictSSL": {
+          "type": "boolean",
+          "default": false,
+          "description": "proxy strict ssl"
         },
         "rest-client.excludeHostsForProxy": {
           "type": "array",
@@ -60,17 +60,17 @@
           "scope": "resource",
           "description": "Timeout in milliseconds. 0 for infinity"
         },
-        "rest-client.rememberCookiesForSubsequentRequests": {
-          "type": "boolean",
-          "default": false,
-          "scope": "resource",
-          "description": "Remember cookies for subsequent requests"
-        },
         "rest-client.followredirect": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
           "description": "Follow HTTP 3xx responses as redirects."
+        },
+        "rest-client.rememberCookiesForSubsequentRequests": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Remember cookies for subsequent requests"
         },
         "rest-client.decodeEscapedUnicodeCharacters": {
           "type": "boolean",

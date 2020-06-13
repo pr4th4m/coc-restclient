@@ -1,0 +1,22 @@
+# @warn
+# @name AllEmployees
+GET http://dummy.restapiexample.com/api/v1/employees HTTP/1.1
+Content-Type: application/json
+
+###
+
+# @name GetEmployees
+GET http://dummy.restapiexample.com/api/v1/employee/1 HTTP/1.1
+Content-Type: application/json
+
+###
+
+# @name CreateEmployee
+POST http://dummy.restapiexample.com/api/v1/create HTTP/1.1
+Content-Type: application/json
+
+{
+    "name":"test",
+    "salary":"123",
+    "age":"23"
+}
