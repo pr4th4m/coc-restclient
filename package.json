@@ -1,6 +1,6 @@
 {
   "name": "coc-restclient",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "description": "vscode http client for coc.nvim",
   "keywords": [
     "coc.nvim",
@@ -149,14 +149,19 @@
   },
   "scripts": {
     "clean": "rimraf lib",
-    "build:watch": "tsc -p ./ --watch",
-    "build": "tsc -p ./"
+    "watch": "webpack --watch",
+    "build": "webpack"
   },
   "devDependencies": {
-    "coc.nvim": "^0.0.77",
     "rimraf": "^3.0.2",
     "@types/node": "^14.0.12",
     "typescript": "^3.9.3",
+    "ts-loader": "^7.0.5",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  },
+  "dependencies": {
+    "coc.nvim": "^0.0.77",
     "combined-stream": "^1.0.5",
     "fs-extra": "^5.0.0",
     "mime-types": "^2.1.14",
@@ -169,6 +174,5 @@
     "tough-cookie": "^3.0.1",
     "tough-cookie-file-store-bugfix": "Huachao/tough-cookie-file-store-bugfix",
     "encodeurl": "^1.0.1"
-  },
-  "dependencies": {}
+  }
 }
