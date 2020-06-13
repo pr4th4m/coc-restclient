@@ -2,6 +2,8 @@
 
 Trying to port features from [vscode-restclient](https://github.com/Huachao/vscode-restclient) to [coc.nvim](https://github.com/neoclide/coc.nvim)
 
+[![asciicast](https://asciinema.org/a/PCy1or40a8OH2gZj24Q97xwpQ.svg)](https://asciinema.org/a/PCy1or40a8OH2gZj24Q97xwpQ)
+
 ## Install
 
 ```sh

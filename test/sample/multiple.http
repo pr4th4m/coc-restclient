@@ -1,12 +1,5 @@
-# @warn
 # @name AllEmployees
 GET http://dummy.restapiexample.com/api/v1/employees HTTP/1.1
-Content-Type: application/json
-
-###
-
-# @name GetEmployees
-GET http://dummy.restapiexample.com/api/v1/employee/1 HTTP/1.1
 Content-Type: application/json
 
 ###
@@ -20,3 +13,10 @@ Content-Type: application/json
     "salary":"123",
     "age":"23"
 }
+
+###
+
+# @warn
+# @name DeleteEmployee
+DELETE http://dummy.restapiexample.com/api/v1/delete/2 HTTP/1.1
+content-type: application/json
