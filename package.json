@@ -1,6 +1,6 @@
 {
   "name": "coc-restclient",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "vscode http client for coc.nvim",
   "author": "Prathamesh Nevagi",
   "license": "MIT",
