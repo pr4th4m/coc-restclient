@@ -1,22 +1,53 @@
 {
   "name": "coc-restclient",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "vscode http client for coc.nvim",
-  "publisher": "pr4th4m",
-  "main": "lib/index.js",
+  "author": "Prathamesh Nevagi",
+  "license": "MIT",
   "keywords": [
     "coc.nvim",
     "vscode"
   ],
-  "repository": "git@github.com/pr4th4m/coc-restclient.git",
-  "author": "pr4th4m",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pr4th4m/coc-restclient.git"
+  },
   "private": false,
+  "main": "lib/index.js",
   "engines": {
     "coc": "^0.0.77"
   },
   "activationEvents": [
     "*"
   ],
+  "scripts": {
+    "clean": "rimraf lib",
+    "watch": "webpack --watch",
+    "build": "webpack",
+    "prepare": "npx npm-run-all clean build"
+  },
+  "devDependencies": {
+    "coc.nvim": "^0.0.77",
+    "rimraf": "^3.0.2",
+    "@types/node": "^14.0.12",
+    "typescript": "^3.9.3",
+    "ts-loader": "^7.0.5",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "combined-stream": "^1.0.5",
+    "fs-extra": "^5.0.0",
+    "mime-types": "^2.1.14",
+    "iconv-lite": "^0.4.15",
+    "aws4": "^1.9.1",
+    "got": "^9.6.0",
+    "uuid": "^3.3.2",
+    "http-proxy-agent": "^2.1.0",
+    "https-proxy-agent": "^2.2.3",
+    "tough-cookie": "^3.0.1",
+    "tough-cookie-file-store-bugfix": "Huachao/tough-cookie-file-store-bugfix",
+    "encodeurl": "^1.0.1"
+  },
+  "dependencies": {},
   "contributes": {
     "commands": [
       {
@@ -146,34 +177,5 @@
         }
       }
     }
-  },
-  "scripts": {
-    "clean": "rimraf lib",
-    "watch": "webpack --watch",
-    "build": "webpack",
-    "prepare": "npx npm-run-all clean build"
-  },
-  "devDependencies": {
-    "rimraf": "^3.0.2",
-    "@types/node": "^14.0.12",
-    "typescript": "^3.9.3",
-    "ts-loader": "^7.0.5",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11"
-  },
-  "dependencies": {
-    "coc.nvim": "^0.0.77",
-    "combined-stream": "^1.0.5",
-    "fs-extra": "^5.0.0",
-    "mime-types": "^2.1.14",
-    "iconv-lite": "^0.4.15",
-    "aws4": "^1.9.1",
-    "got": "^9.6.0",
-    "uuid": "^3.3.2",
-    "http-proxy-agent": "^2.1.0",
-    "https-proxy-agent": "^2.2.3",
-    "tough-cookie": "^3.0.1",
-    "tough-cookie-file-store-bugfix": "Huachao/tough-cookie-file-store-bugfix",
-    "encodeurl": "^1.0.1"
   }
 }
