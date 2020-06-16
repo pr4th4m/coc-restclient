@@ -35,6 +35,14 @@ Use configurations with `:CocConfig` or `$HOME/.config/nvim/coc-settings.json`
 
 [More configuration options here](https://github.com/pr4th4m/coc-restclient/blob/master/package.json#L28)
 
+## Key binding
+
+- Replace `<Leader>0` with key which you are comfortable with
+
+  ```sh
+  noremap <Leader>0 :CocCommand rest-client.request <cr>
+  ```
+
 ## Features ported
 
 - [x] Send http request

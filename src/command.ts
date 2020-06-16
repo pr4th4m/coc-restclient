@@ -1,4 +1,4 @@
-import { workspace, Uri } from "coc.nvim";
+import { workspace } from "coc.nvim";
 import { HttpTextParser } from "./http/textParser";
 import { HttpRequestParser } from "./http/requestParser";
 import { HttpClient } from "./http/httpClient";
