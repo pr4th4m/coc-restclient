@@ -23,7 +23,7 @@ Use commands with `:CocCommand <command>`
 
 ## Configuration
 
-Use configurations with `:CocConfig` or `$HOME/.config/nvim/coc-settings.json`
+[Use configurations with `:CocConfig` or `$HOME/.config/nvim/coc-settings.json`](./test/sample/coc-settings.sample.json)
 
 - `rest-client.enable` : `true`
 - `rest-client.showHeaders` : `true`
@@ -32,6 +32,7 @@ Use configurations with `:CocConfig` or `$HOME/.config/nvim/coc-settings.json`
 - `rest-client.excludeHostsForProxy` : `[]`
 - `rest-client.timeoutinmilliseconds` : `0`
 - `rest-client.followredirect` : `true`
+- `rest-client.certificates` : `{}`
 
 [More configuration options here](https://github.com/pr4th4m/coc-restclient/blob/master/package.json#L28)
 

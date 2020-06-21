@@ -1,0 +1,14 @@
+{
+  "rest-client.showHeaders": false,
+  "rest-client.proxy": "http://127.0.0.1:3128",
+  "rest-client.certificates": {
+    "example.com": {
+      "cert": "/Users/demo/Certificates/client.crt",
+      "key": "/Users/demo/Keys/client.key"
+    },
+    "localhost:8081": {
+      "pfx": "/Users/demo/Certificates/clientcert.p12",
+      "passphrase": "123456"
+    }
+  }
+}

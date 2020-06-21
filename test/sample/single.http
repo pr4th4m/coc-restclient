@@ -1,2 +1,6 @@
-GET http://dummy.restapiexample.com/api/v1/employees HTTP/1.1
-Content-Type: application/json
+# @name oAuth
+POST http://petstore.swagger.io/oauth/token HTTP/1.1
+Authorization: Basic test:abc123
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&scope=write
