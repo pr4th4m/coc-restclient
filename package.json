@@ -49,7 +49,7 @@
     "mime-types": "^2.1.14",
     "iconv-lite": "^0.4.15",
     "aws4": "^1.9.1",
-    "got": "^9.6.0",
+    "got": "^11.8.5",
     "uuid": "^3.3.2",
     "http-proxy-agent": "^2.1.0",
     "https-proxy-agent": "^2.2.3",
